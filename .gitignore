@@ -55,3 +55,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Pig files
+pig_property_file
+
+# Luigi files
+client.cfg

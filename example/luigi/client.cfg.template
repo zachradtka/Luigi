@@ -1,0 +1,13 @@
+# 
+# AWS credentials to check for completed output
+# and store job completion tokens in S3 from Luigi.
+#
+[s3]
+aws_access_key_id: ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+
+#
+# Pig path
+#
+[pig]
+home: ${PIG_HOME}
