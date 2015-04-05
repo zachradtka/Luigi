@@ -5,7 +5,7 @@
 
 -- Set the input and output paths for this wordcount script
 %default INPUT_BOOKS '$INPUT_ROOT_PATH/books/*'
-%default OUTPUT_PATH '$OUTPUT_ROOT_PATH/WORD_COUNT'
+%default OUTPUT_PATH '$OUTPUT_ROOT_PATH/wordcount'
 
 -- Load the text from the books
 raw_text = LOAD '$INPUT_BOOKS';
