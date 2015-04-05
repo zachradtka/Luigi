@@ -10,6 +10,20 @@ import inspect
 import os
 import re
 
+"""
+   To run:
+      Required Parameters:
+         --project-root: The absolute path to your project. No trailing slash.
+
+   Optional Parameters
+      --output-root-path: The root location where output will be stored. No trailing slash.
+      --input-root-path: The root loation for all input files. No trailing slash.
+
+   Ex:
+      python wordcount_pig.py --local-scheduler --project-root <Absolute path to your project> --input-root-path <Absolute path to input files> --output-root-path <Absolute path to output files>
+
+"""
+
 # Number of reduce task slots per m1.xlarge instance
 NUM_REDUCE_SLOTS_PER_MACHINE = 3
 
