@@ -1,0 +1,4 @@
+# Python distibution / packaging
+dist/
+*.egg-info/
+*.egg

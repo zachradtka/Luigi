@@ -3,6 +3,8 @@ from luigi import configuration
 from luigi.contrib.pig import PigJobTask
 from luigi.s3 import S3Target, S3PathTask
 
+from amazon_web_service.luigi.emr_client import InitializeEmrCluster
+
 import logging
 logger = logging.getLogger('luigi-interface')
 
@@ -68,7 +70,7 @@ class PigscriptTask(PigJobTask):
    cluster_size = luigi.IntParameter(default=10)
 
    # A parameter to allow the job to run locally
-   run_locally = luigi.Parameter(default=True)
+   run_locally = luigi.BoolParameter(default=False)
 
    # 
    root_path = None
@@ -285,6 +287,20 @@ class WordCount(PigscriptTask):
       """
       return "wordcount.pig"
 
+
+
+class CreateEmrCluster(InitializeEmrCluster):
+    """
+    This task creates an EMR cluster for runnig the rest of the tasks on
+    """
+ 
+    output_root_path = luigi.Parameter()
+ 
+    def output_token(self):
+        return create_task_s3_target(self.output_root_path, 
+                                     self.__class__.__name__)
+
+
 if __name__ == "__main__":
    """
    We tell Luigi to run the last task in the task dependency graph.  Luigi will then
@@ -294,4 +310,5 @@ if __name__ == "__main__":
    the GenerateUserSignals and GenerateItemSignals tasks which will find their
    required input files in S3.
    """
-   luigi.run(main_task_cls=WordCount)
+   # luigi.run(main_task_cls=WordCount)
+   luigi.run(main_task_cls=CreateEmrCluster)
