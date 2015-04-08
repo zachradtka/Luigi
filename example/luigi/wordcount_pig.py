@@ -4,6 +4,9 @@ from luigi.contrib.pig import PigJobTask
 from luigi.s3 import S3Target, S3PathTask
 
 from amazon_web_service.luigi.emr_client import InitializeEmrCluster
+from amazon_web_service.luigi.emr_client import TerminateEmrCluster
+
+from amazon_web_service.luigi.emr_client import EmrPigTask
 
 import logging
 logger = logging.getLogger('luigi-interface')
@@ -202,14 +205,14 @@ class PigscriptTask(PigJobTask):
       Return 'aws_access_key_id' from client.cfg
       """
 
-      return configuration.get_config().get('s3', 'aws_access_key_id')
+      return configuration.get_config().get('aws', 'aws_access_key_id')
 
    def _get_aws_secret_access_key(self):
       """
       Return 'aws_secret_access_key' from client.cfg
       """
 
-      return configuration.get_config().get('s3', 'aws_secret_access_key')
+      return configuration.get_config().get('aws', 'aws_secret_access_key')
 
    def _log4j_conf(self):
       """
@@ -301,6 +304,39 @@ class CreateEmrCluster(InitializeEmrCluster):
                                      self.__class__.__name__)
 
 
+class RemoteWordCount(EmrPigTask):
+
+   # The root path to where input data is located
+   input_root_path = luigi.Parameter()
+
+   # The root path to where output data will be written, a local or S3 path
+   output_root_path = luigi.Parameter()
+
+
+   def pig_args(self):
+      args = []
+      args.extend(['-p','INPUT_ROOT_PATH=%s' % self.input_root_path])
+      args.extend(['-p','OUTPUT_ROOT_PATH=%s' % self.output_root_path])
+      return args
+
+   def output_token(self):
+
+      return create_task_s3_target(self.output_root_path, 
+                                   self.__class__.__name__)
+
+
+class ShutdownEmrCluster(TerminateEmrCluster):
+    """
+    This task terminates an EMR cluster
+    """
+ 
+    output_root_path = luigi.Parameter()
+ 
+    def output_token(self):
+        return create_task_s3_target(self.output_root_path, 
+                                     self.__class__.__name__)
+
+
 if __name__ == "__main__":
    """
    We tell Luigi to run the last task in the task dependency graph.  Luigi will then
@@ -311,4 +347,6 @@ if __name__ == "__main__":
    required input files in S3.
    """
    # luigi.run(main_task_cls=WordCount)
-   luigi.run(main_task_cls=CreateEmrCluster)
+   #luigi.run(main_task_cls=CreateEmrCluster)
+   # luigi.run(main_task_cls=RemoteWordCount)
+   luigi.run(main_task_cls=ExampleShutdownEmrCluster)

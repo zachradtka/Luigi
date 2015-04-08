@@ -4,10 +4,11 @@ import time
 import boto
 from boto.emr.connection import EmrConnection
 from boto.regioninfo import RegionInfo
-from boto.emr.step import InstallPigStep
+from boto.emr.step import PigStep
  
 import luigi
 from luigi.s3 import S3Target, S3PathTask
+from luigi.contrib.pig import PigJobTask
  
 from amazon_web_service.luigi import target_factory
 
@@ -15,15 +16,8 @@ from amazon_web_service.luigi import target_factory
 import logging
  
 logger = logging.getLogger('luigi-interface')
- 
- 
-def create_task_s3_target(root_path, run_path, task_str):
-    """
-    Helper method for easily creating S3Targets
-    """
-    return S3Target('%s/%s/%s' % (root_path, run_path, task_str))
- 
- 
+
+
 class EmrClient(object):
 
 
@@ -59,8 +53,8 @@ class EmrClient(object):
  
     def launch_emr_cluster(self, cluster_name, log_uri, ec2_keyname=None, master_type='m1.small', core_type='m1.small', num_instances=2, hadoop_version='1.0.3', ami_version='2.4.7', ):
  
-        # Install Pig
-        install_pig_step = InstallPigStep()
+        # TODO Remove
+        # install_pig_step = InstallPigStep()
  
         jobflow_id = self.emr_connection.run_jobflow(name=cluster_name,
                               log_uri=log_uri,
@@ -97,6 +91,21 @@ class EmrClient(object):
         return self._poll_until_cluster_ready(jobflow_id)
  
  
+    def add_pig_step(self, jobflow_id, pig_file, name='Pig Script', pig_versions='latest', pig_args=[]): 
+
+        pig_step = PigStep(name=name,
+                           pig_file=pig_file,
+                           pig_versions=pig_versions,
+                           pig_args=pig_args,
+                           # action_on_failure='CONTINUE',
+                       )
+
+        self.emr_connection.add_jobflow_steps(jobflow_id, [pig_step])
+
+        # Poll until the cluster is done working        
+        return self._poll_until_cluster_ready(jobflow_id)
+
+
     def shutdown_emr_cluster(self, jobflow_id):
  
         self.emr_connection.terminate_jobflow(jobflow_id)
@@ -167,8 +176,8 @@ class EmrClient(object):
             raise RuntimeError('Timed out waiting for EMR cluster to shut down')
  
         return True
- 
- 
+
+
 class EmrTask(luigi.Task):
  
     @abc.abstractmethod
@@ -190,8 +199,8 @@ class EmrTask(luigi.Task):
         :returns: Target for Task completion token
         """
         return self.output_token()
- 
- 
+
+
 class InitializeEmrCluster(EmrTask):
     """
     Luigi Task to initialize a new EMR cluster.
@@ -204,15 +213,29 @@ class InitializeEmrCluster(EmrTask):
     block until creation has finished.
     """
  
-    ec2_keyname = luigi.Parameter()
+    # The s3 URI to write logs to, ex: s3://my.bucket/logs 
     log_uri = luigi.Parameter()
+    
+    # The Key pair name of the key to connect 
+    ec2_keyname = luigi.Parameter(None)
+    
+    # The friendly name for the cluster
     cluster_name = luigi.Parameter(default='EMR Cluster')
+    
+    # The EC2 type to use for the master
     master_type = luigi.Parameter(default='m1.small')
+    
+    # The EC2 type to use for the slaves
     core_type = luigi.Parameter(default='m1.small')
+    
+    # The number of instances in the cluster
     num_instances = luigi.IntParameter(default=1)
+    
+    # The version of hadoop to use
     hadoop_version = luigi.Parameter(default='1.0.3')
+    
+    # The AMI version to use
     ami_version = luigi.Parameter(default='2.4.7')
-
 
 
     def run(self):
@@ -221,10 +244,6 @@ class InitializeEmrCluster(EmrTask):
         """
  
         emr_client = EmrClient()
-        # emr_client.launch_emr_cluster(cluster_name=self.cluster_name, 
-        #                               log_uri=self.log_uri, 
-        #                               ec2_keyname=self.ec2_keyname)
- 
         emr_client.launch_emr_cluster(ec2_keyname=self.ec2_keyname,
                                       log_uri=self.log_uri,
                                       cluster_name=self.cluster_name, 
@@ -233,7 +252,6 @@ class InitializeEmrCluster(EmrTask):
                                       num_instances=self.num_instances,
                                       hadoop_version=self.hadoop_version,
                                       ami_version=self.ami_version)
-
 
         target_factory.write_file(self.output_token())
 
@@ -249,31 +267,31 @@ class TerminateEmrCluster(EmrTask):
 
         target_factory.write_file(self.output_token())
 
+class EmrPigTask(EmrTask):
+
+    # The absolute path to the root of the pigscript directory
+    pig_path = luigi.Parameter()
+
+    def run(self):
+
+        emr_client = EmrClient()
+        jobflow_id = emr_client.get_jobflow_id()
+
+        logger.debug('Adding task to jobflow: %s' % jobflow_id)
+
+        pig_args=self.pig_args()
 
 
-class ExampleCreateEmrCluster(InitializeEmrCluster):
-    """
-    This task creates an EMR cluster for runnig the rest of the tasks on
-    """
- 
-    output_root_path = luigi.Parameter()
-    output_run_path = luigi.Parameter()
- 
-    def output_token(self):
-        return create_task_s3_target(self.output_root_path, 
-                                     self.output_run_path, 
-                                     self.__class__.__name__)
+        emr_client.add_pig_step(jobflow_id=jobflow_id, 
+                                pig_file=self.pig_path,
+                                pig_args=pig_args)
 
+    @abc.abstractmethod
+    def pig_args(self):
+        """
+        List of args to tell the pig task how to run
 
-class ExampleShutdownEmrCluster(TerminateEmrCluster):
-    """
-    This task terminates an EMR cluster
-    """
- 
-    output_root_path = luigi.Parameter()
-    output_run_path = luigi.Parameter()
- 
-    def output_token(self):
-        return create_task_s3_target(self.output_root_path, 
-                                     self.output_run_path, 
-                                     self.__class__.__name__)
+        :rtype: List:
+        :returns: list of args for the pig task
+        """
+        raise RuntimeError("Please implement the build_args method")
