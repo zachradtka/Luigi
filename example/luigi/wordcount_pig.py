@@ -347,6 +347,6 @@ if __name__ == "__main__":
    required input files in S3.
    """
    # luigi.run(main_task_cls=WordCount)
-   #luigi.run(main_task_cls=CreateEmrCluster)
+   luigi.run(main_task_cls=CreateEmrCluster)
    # luigi.run(main_task_cls=RemoteWordCount)
-   luigi.run(main_task_cls=ExampleShutdownEmrCluster)
+   #luigi.run(main_task_cls=ExampleShutdownEmrCluster)

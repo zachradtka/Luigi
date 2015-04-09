@@ -65,28 +65,25 @@ class EmrClient(object):
                               keep_alive=True,
                               enable_debugging=True,
                               hadoop_version=EmrClient.HADOOP_VERSION,
-                              steps=[install_pig_step], 
+                              steps=[], 
                               ami_version=EmrClient.AMI_VERSION)
  
         # Log important information
-        logger.info('Creating new cluster %s with following details' % \
-            self.emr_connection.describe_jobflow(jobflow_id).name)
-        logger.info('jobflow ID:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).jobflowid)
-        logger.info('Log URI:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).loguri)
-        logger.info('Master Instance Type:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).masterinstancetype)
-        logger.info('Slave Instance Type:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).slaveinstancetype)
-        logger.info('Number of Instances:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).instancecount)
-        logger.info('Hadoop Version:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).hadoopversion)
-        logger.info('AMI Version:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).amiversion)
-        logger.info('Keep Alive:\t%s' \
-            % self.emr_connection.describe_jobflow(jobflow_id).keepjobflowalivewhennosteps)
+        status = self.emr_connection.describe_jobflow(jobflow_id)
+
+        logger.info('Creating new cluster %s with following details' % status.name)
+        logger.info('jobflow ID:\t%s' % status.jobflowid)
+        logger.info('Log URI:\t%s' % status.loguri)
+        logger.info('Master Instance Type:\t%s' % status.masterinstancetype)
+        
+        # A cluster of size 1 does not have any slave instances
+        if hasattr(status, 'slaveinstancetype'):
+            logger.info('Slave Instance Type:\t%s' % status.slaveinstancetype)
+        
+        logger.info('Number of Instances:\t%s' % status.instancecount)
+        logger.info('Hadoop Version:\t%s' % status.hadoopversion)
+        logger.info('AMI Version:\t%s' % status.amiversion)
+        logger.info('Keep Alive:\t%s' % status.keepjobflowalivewhennosteps)
  
         return self._poll_until_cluster_ready(jobflow_id)
  
