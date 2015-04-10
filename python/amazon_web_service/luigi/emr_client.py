@@ -112,6 +112,19 @@ class EmrClient(object):
         # Get the id of the cluster that is WAITING for work
         return self.emr_connection.list_clusters(cluster_states=['WAITING']).clusters[0].id
  
+    def get_master_dns(self):
+        """
+        Get the master node's public address
+        """
+        # Get the jobflow ID
+        jobflow_id = self.get_master_dns()
+
+        # Use the jobflow ID to get the status
+        status = self.emr_connection.describe_jobflow(jobflow_id)
+
+        # Return the master's public dns
+        return status.masterpublicdnsname
+
     def _poll_until_cluster_ready(self, jobflow_id):
  
         start_time = time.time()
